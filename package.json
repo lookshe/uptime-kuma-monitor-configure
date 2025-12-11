@@ -1,0 +1,17 @@
+{
+  "name": "uptime-kuma-monitor-configure",
+  "version": "0.0.1",
+  "description": "configure monitors for uptime-kuma directly in sqlite",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://git.fucktheforce.de/lookshe/uptime-kuma-monitor-configure.git"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "js-yaml": "^4.1.1"
+  }
+}

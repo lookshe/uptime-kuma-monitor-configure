@@ -1,0 +1,33 @@
+defaults: &defaults
+  Ping: &ping
+    type: "ping"
+    hostname: "$$IP$$"
+  SSH: &ssh
+    type: "port"
+    port: "22"
+    hostname: "$$IP$$"
+  DNS: &dns
+    type: "dns"
+    port: "53"
+    hostname: "fumuga.com"
+    dns_resolve_server: "$$IP$$"
+  Node Exporter: &node_exporter
+    type: "port"
+    port: "9100"
+    hostname: "$$IP$$"
+  Proxy: &proxy
+    type: "port"
+    port: "8888"
+    hostname: "$$IP$$"
+  VPN: &vpn
+    type: "port"
+    port: "443"
+    hostname: "$$IP$$"
+monitors:
+  us.proxy:
+    type: group
+    ips:
+      v4: "192.227.133.242"
+      v6: "2605:6f01:2000:f8::ca7e:ae"
+    monitors:
+      <<: *defaults
