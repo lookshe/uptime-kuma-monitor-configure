@@ -43,10 +43,7 @@ async function validateInput() {
       cause: error,
     });
   }
-  if (
-    !fs.existsSync(params.database) ||
-    !fs.lstatSync(params.database).isFile()
-  ) {
+  if (!fs.existsSync(params.database) || !fs.lstatSync(params.database).isFile()) {
     throw new Error(`database file "${params.database}" not existing`);
   }
   try {
@@ -62,14 +59,10 @@ async function validateInput() {
 async function createGroup(name, parentId) {
   let result;
   if (parentId) {
-    const stmt = database.prepare(
-      "SELECT id from monitor WHERE name = :name AND parent = :parent AND type = 'group'",
-    );
+    const stmt = database.prepare("SELECT id from monitor WHERE name = :name AND parent = :parent AND type = 'group'");
     result = stmt.get({ ":name": name, ":parent": parentId });
   } else {
-    const stmt = database.prepare(
-      "SELECT id from monitor WHERE name = :name AND parent is null AND type = 'group'",
-    );
+    const stmt = database.prepare("SELECT id from monitor WHERE name = :name AND parent is null AND type = 'group'");
     result = stmt.get({ ":name": name });
   }
   if (result) {
@@ -91,14 +84,10 @@ async function createMonitor(name, monitor, parentId, ips = undefined) {
   } else {
     let result;
     if (parentId) {
-      const stmt = database.prepare(
-        "SELECT id from monitor WHERE name = :name AND parent = :parent",
-      );
+      const stmt = database.prepare("SELECT id from monitor WHERE name = :name AND parent = :parent");
       result = stmt.get({ ":name": name, ":parent": parentId });
     } else {
-      const stmt = database.prepare(
-        "SELECT id from monitor WHERE name = :name AND parent is null",
-      );
+      const stmt = database.prepare("SELECT id from monitor WHERE name = :name AND parent is null");
       result = stmt.get({ ":name": name });
     }
     if (result) {
