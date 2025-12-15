@@ -11,7 +11,7 @@ vserver_defaults: &vserver_defaults
   DNS: &dns
     type: "dns"
     port: "53"
-    hostname: "fumuga.com"
+    hostname: "example.com"
     dns_resolve_server: "$$IP$$"
   Node Exporter: &node_exporter
     type: "port"
