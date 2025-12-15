@@ -1,11 +1,13 @@
 defaults: &defaults
-  Ping: &ping
+  Ping:
     type: "ping"
     hostname: "$$IP$$"
-  SSH: &ssh
+  SSH:
     type: "port"
     port: "22"
     hostname: "$$IP$$"
+vserver_defaults: &vserver_defaults
+  <<: *defaults
   DNS: &dns
     type: "dns"
     port: "53"
@@ -27,7 +29,29 @@ monitors:
   us.proxy:
     type: group
     ips:
-      v4: "192.227.133.242"
-      v6: "2605:6f01:2000:f8::ca7e:ae"
+      v4: "172.16.1.2"
+      v6: "2001:0db8:85a3:0000:0000:8a2e:0370:1234"
     monitors:
-      <<: *defaults
+      <<: *vserver_defaults
+  Proxmox:
+    type: group
+    monitors:
+      database:
+        type: group
+        ips:
+          v4: "10.0.0.1"
+          v6: "2001:0db8:85a3:0000:0000:8a2e:0370:00db"
+        monitors:
+          <<: *defaults
+          MariaDB:
+            type: port
+            port: "3306"
+            hostname: "$$IP$$"
+      powerdns:
+        type: group
+        ips:
+          v4: "10.0.0.2"
+          v6: "2001:0db8:85a3:0000:0000:8a2e:0370:0053"
+        monitors:
+          <<: *defaults
+          DNS: *dns
