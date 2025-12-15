@@ -117,6 +117,10 @@ async function createMonitor(name, monitor, parentId, ips = undefined) {
     }
     // the name is needed in the monitor data
     monitor.name = name;
+    // and so is the parent when exists
+    if (parentId) {
+      monitor.parent = parentId;
+    }
     const keys = Object.keys(monitor);
     const columns = keys.join(",");
     const params = keys.map((k) => `:${k}`).join(",");
