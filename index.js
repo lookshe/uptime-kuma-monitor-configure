@@ -5,6 +5,11 @@ const { DatabaseSync } = require('node:sqlite');
 
 let database;
 
+const helpString = 'Options:\n'
+       + '--config|-c FILE   : path to configuration file in yaml format (required)\n'
+       + '--database|-d FILE : path to uptime-kuma sqlite database (required)\n'
+       + '--help|h           : print this help and exit';
+
 async function parseCommandLineArgs() {
   const { values } = util.parseArgs({
     args: process.argv.slice(2),
@@ -18,42 +23,30 @@ async function parseCommandLineArgs() {
   return values;
 }
 
-async function printHelp() {
-  console.log('Options:');
-  console.log('--config|-c FILE   : path to configuration file in json format (required)');
-  console.log('--database|-d FILE : path to uptime-kuma sqlite database (required)');
-  console.log('--help|h           : print this help and exit');
-}
-
 async function validateInput() {
   const params = await parseCommandLineArgs();
   if (params.help) {
-    await printHelp();
+    console.log(helpString);
     process.exit(0);
   }
   if (!params.config || !params.database) {
-    printHelp();
-    process.exit(1);
+    throw new Error(helpString);
   }
   if (!fs.existsSync(params.config) || !fs.lstatSync(params.config).isFile()) {
-    console.error('config file "' + params.config + '" not existing')
-    process.exit(1);
+    throw new Error(`config file "${params.config}" not existing`);
   }
   try {
      fs.accessSync(params.config, fs.constants.R_OK)
   } catch (error) {
-    console.error('config file "' + params.config + '" not readable')
-    process.exit(1);
+    throw new Error(`config file "${params.config}" not readable`);
   }
   if (!fs.existsSync(params.database) || !fs.lstatSync(params.database).isFile()) {
-    console.error('database file "' + params.database + '" not existing')
-    process.exit(1);
+    throw new Error(`database file "${params.database}" not existing`);
   }
   try {
      fs.accessSync(params.database, fs.constants.R_OK | fs.constants.W_OK)
   } catch (error) {
-    console.error('database file "' + params.database + '" not writeable')
-    process.exit(1);
+    throw new Error(`database file "${params.database}" not writeable`);
   }
   return { configFile: params.config, databaseFile: params.database };
 }
@@ -75,11 +68,11 @@ async function createGroup(name, parentId) {
 
 async function createMonitor(name, monitor, parentId, ips = undefined) {
   if (ips) {
-    for (ipKey in ips) {
+    for (const [ipKey, ip] of Object.entries(ips)) {
       const newName = name + (ipKey === 'v4' ? '' : ' - ' + ipKey);
       const newMonitor = { ... monitor }
       Object.keys(newMonitor).forEach(monitorKey => {
-        newMonitor[monitorKey] = newMonitor[monitorKey].replace('$$IP$$', ips[ipKey])
+        newMonitor[monitorKey] = newMonitor[monitorKey].replace('$$IP$$', ip)
       });
       await createMonitor(newName, newMonitor, parentId)
     }
@@ -101,14 +94,15 @@ async function createMonitor(name, monitor, parentId, ips = undefined) {
 }
 
 async function loopGroup(group, parentId = undefined, ipsParent = undefined) {
-  for (monitorKey in group.monitors) {
-    monitor = group.monitors[monitorKey];
-    ips = monitor.ips === undefined ? ipsParent : monitor.ips;
-    if (monitor.type === 'group') {
-      id = await createGroup(monitorKey, parentId)
-      await loopGroup(monitor, id, ips)
-    } else {
-      await createMonitor(monitorKey, monitor, parentId, ips)
+  if (group.monitors) {
+    for (const [monitorKey, monitor] of Object.entries(group.monitors)) {
+      const ips = monitor.ips === undefined ? ipsParent : monitor.ips;
+      if (monitor.type === 'group') {
+        const id = await createGroup(monitorKey, parentId)
+        await loopGroup(monitor, id, ips)
+      } else {
+        await createMonitor(monitorKey, monitor, parentId, ips)
+      }
     }
   }
 }
@@ -121,4 +115,4 @@ async function main() {
   database.close();
 }
 
-main().catch(console.error);
+main().catch(err => {console.error(err.message); process.exit(1)});
