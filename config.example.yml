@@ -13,6 +13,7 @@ vserver_defaults: &vserver_defaults
     port: "53"
     hostname: "example.com"
     dns_resolve_server: "$$IP$$"
+    dns_resolve_type: "A"
   Node Exporter: &node_exporter
     type: "port"
     port: "9100"
