@@ -38,7 +38,7 @@ async function validateInput() {
   try {
      fs.accessSync(params.config, fs.constants.R_OK)
   } catch (error) {
-    throw new Error(`config file "${params.config}" not readable`);
+    throw new Error(`config file "${params.config}" not readable`, {cause: error});
   }
   if (!fs.existsSync(params.database) || !fs.lstatSync(params.database).isFile()) {
     throw new Error(`database file "${params.database}" not existing`);
@@ -46,7 +46,7 @@ async function validateInput() {
   try {
      fs.accessSync(params.database, fs.constants.R_OK | fs.constants.W_OK)
   } catch (error) {
-    throw new Error(`database file "${params.database}" not writeable`);
+    throw new Error(`database file "${params.database}" not writeable`, {cause: error});
   }
   return { configFile: params.config, databaseFile: params.database };
 }
