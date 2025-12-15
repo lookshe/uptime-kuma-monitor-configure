@@ -1,6 +1,9 @@
 const util = require('node:util');
 const fs = require('fs');
 const yaml = require('js-yaml');
+const { DatabaseSync } = require('node:sqlite');
+
+let database;
 
 async function parseCommandLineArgs() {
   const { values } = util.parseArgs({
@@ -55,12 +58,67 @@ async function validateInput() {
   return { configFile: params.config, databaseFile: params.database };
 }
 
+async function createGroup(name, parentId) {
+  let result;
+  if (parentId) {
+    const stmt = database.prepare("SELECT id from monitor WHERE name = :name AND parent = :parent AND type = 'group'");
+    result = stmt.get({':name': name, ':parent': parentId});
+  } else {
+    const stmt = database.prepare("SELECT id from monitor WHERE name = :name AND parent is null AND type = 'group'");
+    result = stmt.get({':name': name});
+  }
+  if (result) {
+    return result.id;
+  }
+  // create group
+}
+
+async function createMonitor(name, monitor, parentId, ips = undefined) {
+  if (ips) {
+    for (ipKey in ips) {
+      const newName = name + (ipKey === 'v4' ? '' : ' - ' + ipKey);
+      const newMonitor = { ... monitor }
+      Object.keys(newMonitor).forEach(monitorKey => {
+        newMonitor[monitorKey] = newMonitor[monitorKey].replace('$$IP$$', ips[ipKey])
+      });
+      await createMonitor(newName, newMonitor, parentId)
+    }
+  } else {
+    let result;
+    if (parentId) {
+      const stmt = database.prepare("SELECT id from monitor WHERE name = :name AND parent = :parent");
+      result = stmt.get({':name': name, ':parent': parentId});
+    } else {
+      const stmt = database.prepare("SELECT id from monitor WHERE name = :name AND parent is null");
+      result = stmt.get({':name': name});
+    }
+    if (result) {
+      // update monitor
+    } else {
+      // create monitor
+    }
+  }
+}
+
+async function loopGroup(group, parentId = undefined, ipsParent = undefined) {
+  for (monitorKey in group.monitors) {
+    monitor = group.monitors[monitorKey];
+    ips = monitor.ips === undefined ? ipsParent : monitor.ips;
+    if (monitor.type === 'group') {
+      id = await createGroup(monitorKey, parentId)
+      await loopGroup(monitor, id, ips)
+    } else {
+      await createMonitor(monitorKey, monitor, parentId, ips)
+    }
+  }
+}
+
 async function main() {
   const {configFile, databaseFile} = await validateInput();
   const config = yaml.load(fs.readFileSync(configFile));
-  // todo: iterate config, check database by name and group(s), insert/replace
-  // only for testing/debugging
-  console.log(config.monitors['us.proxy']);
+  database = new DatabaseSync(databaseFile, {open: true, readOnly: true})
+  await loopGroup(config);
+  database.close();
 }
 
 main().catch(console.error);
