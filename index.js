@@ -56,6 +56,19 @@ async function validateInput() {
   return { configFile: params.config, databaseFile: params.database };
 }
 
+async function updateMonitorWithDefaults(id) {
+  const defaults = {};
+  defaults.user_id = 1;
+  defaults.interval = 60;
+  defaults.retry_interval = 60;
+  defaults.timeout = 48;
+  const defaultsString = Object.entries(defaults)
+    .map(([key, value]) => `${key} = ${value}`)
+    .join(",");
+  const stmt = database.prepare(`UPDATE monitor SET ${defaultsString} WHERE id = :id`);
+  stmt.run({ ":id": id });
+}
+
 async function createGroup(name, parentId) {
   let result;
   if (parentId) {
@@ -68,7 +81,15 @@ async function createGroup(name, parentId) {
   if (result) {
     return result.id;
   }
-  // create group
+  if (parentId) {
+    const stmt = database.prepare("INSERT INTO monitor(name, type, parent) VALUES(:name, :type, :parent)");
+    result = stmt.run({ ":name": name, ":type": "group", ":parent": parentId });
+  } else {
+    const stmt = database.prepare("INSERT INTO monitor(name, type) VALUES(:name, :type)");
+    result = stmt.run({ ":name": name, ":type": "group" });
+  }
+  await updateMonitorWithDefaults(result.lastInsertRowid);
+  return result.lastInsertRowid;
 }
 
 async function createMonitor(name, monitor, parentId, ips = undefined) {
@@ -90,11 +111,20 @@ async function createMonitor(name, monitor, parentId, ips = undefined) {
       const stmt = database.prepare("SELECT id from monitor WHERE name = :name AND parent is null");
       result = stmt.get({ ":name": name });
     }
+    // if monitor already exists, add its id for replacing
     if (result) {
-      // update monitor
-    } else {
-      // create monitor
+      monitor.id = result.id;
     }
+    // the name is needed in the monitor data
+    monitor.name = name;
+    const keys = Object.keys(monitor);
+    const columns = keys.join(",");
+    const params = keys.map((k) => `:${k}`).join(",");
+    // prefix keys with ":" to use as named parameters
+    const namedParams = Object.keys(monitor).reduce((a, c) => ((a[`:${c}`] = monitor[c]), a), {});
+    const stmt = database.prepare(`REPLACE INTO monitor(${columns}) VALUES(${params})`);
+    result = stmt.run(namedParams);
+    await updateMonitorWithDefaults(result.lastInsertRowid);
   }
 }
 
@@ -115,7 +145,7 @@ async function loopGroup(group, parentId = undefined, ipsParent = undefined) {
 async function main() {
   const { configFile, databaseFile } = await validateInput();
   const config = yaml.load(fs.readFileSync(configFile));
-  database = new DatabaseSync(databaseFile, { open: true, readOnly: true });
+  database = new DatabaseSync(databaseFile, { open: true });
   await loopGroup(config);
   database.close();
 }
