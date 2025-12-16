@@ -56,20 +56,14 @@ async function validateInput() {
   return { configFile: params.config, databaseFile: params.database };
 }
 
-async function updateMonitorWithDefaults(id) {
-  const defaults = {};
-  defaults.user_id = 1;
-  defaults.interval = 60;
-  defaults.retry_interval = 60;
-  defaults.timeout = 48;
-  const defaultsString = Object.entries(defaults)
-    .map(([key, value]) => `${key} = ${value}`)
-    .join(",");
-  const stmt = database.prepare(`UPDATE monitor SET ${defaultsString} WHERE id = :id`);
-  stmt.run({ ":id": id });
-}
-
-async function replaceMonitor(monitor) {
+async function replaceMonitor(inputMonitor) {
+  const defaults = {
+    user_id: 1,
+    interval: 60,
+    retry_interval: 60,
+    timeout: 48,
+  };
+  const monitor = { ...defaults, ...inputMonitor };
   const keys = Object.keys(monitor);
   const columns = keys.join(",");
   const params = keys.map((k) => `:${k}`).join(",");
@@ -77,7 +71,6 @@ async function replaceMonitor(monitor) {
   const namedParams = Object.keys(monitor).reduce((a, c) => ((a[`:${c}`] = monitor[c]), a), {});
   const stmt = database.prepare(`REPLACE INTO monitor(${columns}) VALUES(${params})`);
   const result = stmt.run(namedParams);
-  await updateMonitorWithDefaults(result.lastInsertRowid);
   return result.lastInsertRowid;
 }
 
