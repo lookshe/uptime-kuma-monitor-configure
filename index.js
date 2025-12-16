@@ -33,21 +33,21 @@ async function validateInput() {
   if (!params.config || !params.database) {
     throw new Error(helpString);
   }
-  if (!fs.existsSync(params.config) || !fs.lstatSync(params.config).isFile()) {
+  if (!(await fs.promises.stat(params.config)).isFile()) {
     throw new Error(`config file "${params.config}" not existing`);
   }
   try {
-    fs.accessSync(params.config, fs.constants.R_OK);
+    await fs.promises.access(params.config, fs.constants.R_OK);
   } catch (error) {
     throw new Error(`config file "${params.config}" not readable`, {
       cause: error,
     });
   }
-  if (!fs.existsSync(params.database) || !fs.lstatSync(params.database).isFile()) {
+  if (!(await fs.promises.stat(params.database)).isFile()) {
     throw new Error(`database file "${params.database}" not existing`);
   }
   try {
-    fs.accessSync(params.database, fs.constants.R_OK | fs.constants.W_OK);
+    await fs.promises.access(params.database, fs.constants.R_OK | fs.constants.W_OK);
   } catch (error) {
     throw new Error(`database file "${params.database}" not writeable`, {
       cause: error,
@@ -142,7 +142,7 @@ async function loopGroup(group, parentId = undefined, ipsParent = undefined) {
 
 async function main() {
   const { configFile, databaseFile } = await validateInput();
-  const config = yaml.load(fs.readFileSync(configFile));
+  const config = yaml.load(await fs.promises.readFile(configFile));
   database = new DatabaseSync(databaseFile, { open: true });
   await loopGroup(config);
   database.close();
