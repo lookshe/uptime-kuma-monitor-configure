@@ -30,7 +30,7 @@ monitors:
   us.proxy:
     type: group
     ips:
-      v4: "172.16.1.2"
+      default: "172.16.1.2"
       v6: "2001:0db8:85a3:0000:0000:8a2e:0370:1234"
     monitors:
       <<: *vserver_defaults
@@ -40,7 +40,7 @@ monitors:
       database:
         type: group
         ips:
-          v4: "10.0.0.1"
+          default: "10.0.0.1"
           v6: "2001:0db8:85a3:0000:0000:8a2e:0370:00db"
         monitors:
           <<: *defaults
@@ -51,7 +51,7 @@ monitors:
       powerdns:
         type: group
         ips:
-          v4: "10.0.0.2"
+          default: "10.0.0.2"
           v6: "2001:0db8:85a3:0000:0000:8a2e:0370:0053"
         monitors:
           <<: *defaults

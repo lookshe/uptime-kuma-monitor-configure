@@ -96,7 +96,7 @@ async function createOrUpdateGroup(name, parentId) {
 async function createOrUpdateMonitor(name, monitor, parentId, ips = undefined) {
   if (ips) {
     for (const [ipKey, ip] of Object.entries(ips)) {
-      const newName = name + (ipKey === "v4" ? "" : " - " + ipKey);
+      const newName = name + (ipKey === "default" ? "" : " - " + ipKey);
       const newMonitor = { ...monitor };
       Object.keys(newMonitor).forEach((monitorKey) => {
         newMonitor[monitorKey] = newMonitor[monitorKey].replace("$$IP$$", ip);
