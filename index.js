@@ -69,7 +69,19 @@ async function updateMonitorWithDefaults(id) {
   stmt.run({ ":id": id });
 }
 
-async function createGroup(name, parentId) {
+async function replaceMonitor(monitor) {
+  const keys = Object.keys(monitor);
+  const columns = keys.join(",");
+  const params = keys.map((k) => `:${k}`).join(",");
+  // prefix keys with ":" to use as named parameters
+  const namedParams = Object.keys(monitor).reduce((a, c) => ((a[`:${c}`] = monitor[c]), a), {});
+  const stmt = database.prepare(`REPLACE INTO monitor(${columns}) VALUES(${params})`);
+  const result = stmt.run(namedParams);
+  await updateMonitorWithDefaults(result.lastInsertRowid);
+  return result.lastInsertRowid;
+}
+
+async function createOrUpdateGroup(name, parentId) {
   let result;
   if (parentId) {
     const stmt = database.prepare("SELECT id from monitor WHERE name = :name AND parent = :parent AND type = 'group'");
@@ -81,18 +93,14 @@ async function createGroup(name, parentId) {
   if (result) {
     return result.id;
   }
+  const monitor = { name: name, type: "group" };
   if (parentId) {
-    const stmt = database.prepare("INSERT INTO monitor(name, type, parent) VALUES(:name, :type, :parent)");
-    result = stmt.run({ ":name": name, ":type": "group", ":parent": parentId });
-  } else {
-    const stmt = database.prepare("INSERT INTO monitor(name, type) VALUES(:name, :type)");
-    result = stmt.run({ ":name": name, ":type": "group" });
+    monitor.parent = parentId;
   }
-  await updateMonitorWithDefaults(result.lastInsertRowid);
-  return result.lastInsertRowid;
+  return await replaceMonitor(monitor);
 }
 
-async function createMonitor(name, monitor, parentId, ips = undefined) {
+async function createOrUpdateMonitor(name, monitor, parentId, ips = undefined) {
   if (ips) {
     for (const [ipKey, ip] of Object.entries(ips)) {
       const newName = name + (ipKey === "v4" ? "" : " - " + ipKey);
@@ -100,7 +108,7 @@ async function createMonitor(name, monitor, parentId, ips = undefined) {
       Object.keys(newMonitor).forEach((monitorKey) => {
         newMonitor[monitorKey] = newMonitor[monitorKey].replace("$$IP$$", ip);
       });
-      await createMonitor(newName, newMonitor, parentId);
+      await createOrUpdateMonitor(newName, newMonitor, parentId);
     }
   } else {
     let result;
@@ -121,14 +129,7 @@ async function createMonitor(name, monitor, parentId, ips = undefined) {
     if (parentId) {
       monitor.parent = parentId;
     }
-    const keys = Object.keys(monitor);
-    const columns = keys.join(",");
-    const params = keys.map((k) => `:${k}`).join(",");
-    // prefix keys with ":" to use as named parameters
-    const namedParams = Object.keys(monitor).reduce((a, c) => ((a[`:${c}`] = monitor[c]), a), {});
-    const stmt = database.prepare(`REPLACE INTO monitor(${columns}) VALUES(${params})`);
-    result = stmt.run(namedParams);
-    await updateMonitorWithDefaults(result.lastInsertRowid);
+    return await replaceMonitor(monitor);
   }
 }
 
@@ -137,10 +138,10 @@ async function loopGroup(group, parentId = undefined, ipsParent = undefined) {
     for (const [monitorKey, monitor] of Object.entries(group.monitors)) {
       const ips = monitor.ips === undefined ? ipsParent : monitor.ips;
       if (monitor.type === "group") {
-        const id = await createGroup(monitorKey, parentId);
+        const id = await createOrUpdateGroup(monitorKey, parentId);
         await loopGroup(monitor, id, ips);
       } else {
-        await createMonitor(monitorKey, monitor, parentId, ips);
+        await createOrUpdateMonitor(monitorKey, monitor, parentId, ips);
       }
     }
   }
