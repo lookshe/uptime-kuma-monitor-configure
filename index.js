@@ -155,7 +155,9 @@ async function main() {
   const { configFile, databaseFile } = await validateInput();
   const config = yaml.load(await fs.promises.readFile(configFile));
   database = new DatabaseSync(databaseFile, { open: true });
+  database.exec("PRAGMA foreign_keys = OFF;");
   await loopGroup(config);
+  database.exec("PRAGMA foreign_keys = ON;");
   database.close();
 }
 
