@@ -63,7 +63,18 @@ async function replaceMonitor(inputMonitor) {
     retry_interval: 60,
     timeout: 48,
   };
-  const monitor = { ...defaults, ...inputMonitor };
+  const oldMonitor = {};
+  if (inputMonitor.id) {
+    const oldData = database.prepare(`SELECT * FROM monitor where id = :id`).get({ ":id": inputMonitor.id });
+    if (oldData) {
+      for (const [key, value] of Object.entries(oldData)) {
+        if (value !== null) {
+          oldMonitor[key] = value;
+        }
+      }
+    }
+  }
+  const monitor = { ...defaults, ...oldMonitor, ...inputMonitor };
   const keys = Object.keys(monitor);
   const columns = keys.join(",");
   const params = keys.map((k) => `:${k}`).join(",");
