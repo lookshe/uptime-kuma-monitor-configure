@@ -5,6 +5,8 @@ const { DatabaseSync } = require("node:sqlite");
 
 let database;
 
+const replaceString = "$$IP$$";
+
 const helpString =
   "Options:\n" +
   "--config|-c FILE   : path to configuration file in yaml format (required)\n" +
@@ -104,13 +106,19 @@ async function createOrUpdateGroup(name, parentId) {
   return await replaceMonitor(monitor);
 }
 
+async function monitorContainsReplacement(monitor) {
+  return Object.values(monitor).some((value) => 
+    String(value).includes(replaceString)
+  );
+}
+
 async function createOrUpdateMonitor(name, monitor, parentId, ips = undefined) {
-  if (ips) {
+  if (ips && await monitorContainsReplacement(monitor)) {
     for (const [ipKey, ip] of Object.entries(ips)) {
       const newName = name + (ipKey === "default" ? "" : " - " + ipKey);
       const newMonitor = { ...monitor };
       Object.keys(newMonitor).forEach((monitorKey) => {
-        newMonitor[monitorKey] = newMonitor[monitorKey].replace("$$IP$$", ip);
+        newMonitor[monitorKey] = newMonitor[monitorKey].replace(replaceString, ip);
       });
       await createOrUpdateMonitor(newName, newMonitor, parentId);
     }
