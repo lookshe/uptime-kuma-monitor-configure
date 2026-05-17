@@ -29,9 +29,10 @@ vserver_defaults: &vserver_defaults
 monitors:
   us.proxy:
     type: group
-    ips:
-      default: "172.16.1.2"
-      v6: "2001:0db8:85a3:0000:0000:8a2e:0370:1234"
+    replacements:
+      IP:
+        default: "172.16.1.2"
+        v6: "2001:0db8:85a3:0000:0000:8a2e:0370:1234"
     monitors:
       <<: *vserver_defaults
   Proxmox:
@@ -39,9 +40,10 @@ monitors:
     monitors:
       database:
         type: group
-        ips:
-          default: "10.0.0.1"
-          v6: "2001:0db8:85a3:0000:0000:8a2e:0370:00db"
+        replacements:
+          IP:
+            default: "10.0.0.1"
+            v6: "2001:0db8:85a3:0000:0000:8a2e:0370:00db"
         monitors:
           <<: *defaults
           MariaDB:
@@ -50,9 +52,30 @@ monitors:
             hostname: "$$IP$$"
       powerdns:
         type: group
-        ips:
-          default: "10.0.0.2"
-          v6: "2001:0db8:85a3:0000:0000:8a2e:0370:0053"
+        replacements:
+          IP:
+            default: "10.0.0.2"
+            v6: "2001:0db8:85a3:0000:0000:8a2e:0370:0053"
         monitors:
           <<: *defaults
           DNS: *dns
+      webserver:
+        type: group
+        replacements:
+          IP:
+            default: "10.0.0.3"
+            v6: "2001:0db8:85a3:0000:0000:8a2e:0370:0443"
+          DOMAIN:
+            main-website: "https://example.com"
+            webmail: "https://webmail.example.com"
+          IP_FAMILY:
+            default: "ipv4"
+            v6: "ipv6"
+        monitors:
+          <<: *defaults
+          Web:
+            type: http
+            url: "$$DOMAIN$$"
+            domain_expiry_notification: 1
+            expiry_notification: 1
+            ip_family: "$$IP_FAMILY$$"

@@ -5,7 +5,7 @@ const { DatabaseSync } = require("node:sqlite");
 
 let database;
 
-const replaceString = "$$IP$$";
+const replaceString = "\\$\\$";
 
 const helpString =
   "Options:\n" +
@@ -108,18 +108,58 @@ async function createOrUpdateGroup(name, parentId) {
 
 async function monitorContainsReplacement(monitor) {
   return Object.values(monitor).some((value) => 
-    String(value).includes(replaceString)
+    String(value).match(new RegExp(replaceString + ".*" + replaceString))
   );
 }
 
-async function createOrUpdateMonitor(name, monitor, parentId, ips = undefined) {
-  if (ips && await monitorContainsReplacement(monitor)) {
-    for (const [ipKey, ip] of Object.entries(ips)) {
-      const newName = name + (ipKey === "default" ? "" : " - " + ipKey);
-      const newMonitor = { ...monitor };
-      Object.keys(newMonitor).forEach((monitorKey) => {
-        newMonitor[monitorKey] = newMonitor[monitorKey].replace(replaceString, ip);
+async function monitorContainsReplacementKey(monitor, key) {
+  const regex = new RegExp(replaceString + key + replaceString);
+  return Object.values(monitor).some((value) =>
+    String(value).match(regex) !== null
+  );
+}
+
+async function createOrUpdateMonitor(name, monitor, parentId, replacements = {}) {
+  if (Object.keys(replacements).length > 0 && await monitorContainsReplacement(monitor)) {
+    const replacementKeys = [];
+    for (const key in replacements) {
+      if (await monitorContainsReplacementKey(monitor, key)) {
+        replacementKeys.push(key);
+      }
+    }
+    const containedReplacements = Object.entries(replacements).filter(([r, v]) => replacementKeys.includes(r)).map(([categoryName, entries]) => {
+      return {
+        name: categoryName,
+        items: Object.entries(entries).map(([key, value]) => ({ key, value }))
+      };
+    });
+    // cartesian product reducer
+    const cartesian = (arrays) =>
+      arrays.reduce((acc, curr) =>
+        acc.flatMap(a => curr.map(b => [...a, b]))
+      , [[]]);
+    // build replacement combinations
+    const combinations = cartesian(containedReplacements.map(c => c.items)).map(combo => {
+      const obj = {};
+      combo.forEach((item, index) => {
+        const categoryName = containedReplacements[index].name;
+        obj[categoryName] = item;
       });
+      return obj;
+    });
+    // build monitor out of all combinations
+    for (const combination of combinations) {
+      const newMonitor = { ...monitor };
+      let newName = name;
+      for (const replacementKey of Object.keys(combination)) {
+        Object.keys(newMonitor).forEach((monitorKey) => {
+          const regex = new RegExp(replaceString + replacementKey + replaceString);
+          if (String(newMonitor[monitorKey]).match(regex) !== null) {
+            newName += (combination[replacementKey].key === "default" ? "" : " - " + combination[replacementKey].key);
+            newMonitor[monitorKey] = newMonitor[monitorKey].replace(regex, combination[replacementKey].value);
+          }
+        });
+      }
       await createOrUpdateMonitor(newName, newMonitor, parentId);
     }
   } else {
@@ -145,15 +185,15 @@ async function createOrUpdateMonitor(name, monitor, parentId, ips = undefined) {
   }
 }
 
-async function loopGroup(group, parentId = undefined, ipsParent = undefined) {
+async function loopGroup(group, parentId = undefined, replacementsParent = {}) {
   if (group.monitors) {
     for (const [monitorKey, monitor] of Object.entries(group.monitors)) {
-      const ips = monitor.ips === undefined ? ipsParent : monitor.ips;
+      const replacements = {...replacementsParent,...monitor.replacements};
       if (monitor.type === "group") {
         const id = await createOrUpdateGroup(monitorKey, parentId);
-        await loopGroup(monitor, id, ips);
+        await loopGroup(monitor, id, replacements);
       } else {
-        await createOrUpdateMonitor(monitorKey, monitor, parentId, ips);
+        await createOrUpdateMonitor(monitorKey, monitor, parentId, replacements);
       }
     }
   }

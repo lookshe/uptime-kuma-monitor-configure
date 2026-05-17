@@ -6,7 +6,7 @@ Configure monitors for [Uptime Kuma](https://github.com/louislam/uptime-kuma) di
 - define monitors and groups in a simple YAML file
 - supports nested groups and inheritance of defaults
 - automatically creates or updates monitors in the Uptime Kuma SQLite database
-- handles IPv4/IPv6 substitution with `$$IP$$` placeholder
+- handles replacement substitution with `$$EXAMPLE_KEY$$` placeholder
 - apply safe defaults (`user_id: 1`, `interval: 60`, `retry_interval: 60`, `timeout: 48`) if not specified
 - works directly with the database (no need for API calls)
 
@@ -36,7 +36,7 @@ node index.js --config config.yml --database /path/to/uptime-kuma/kuma.db
 
 For an example configuration look at `config.example.yml`.
 YAML also supports anchors (`&`) and references (`*`) for reusage of monitors.
-`$$IP$$` can be used as placeholder for configured ip addresses from group parents.
+`$$EXAMPLE_KEY$$` can be used as placeholder also from group parents.
 
 ## Caveats
 - stop Uptime Kuma before execution to avoid database locks
